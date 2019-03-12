@@ -25,6 +25,10 @@ module.exports =
         it 'should fail to remove an element', ->
           expect(-> priv.remove(4)).to.throw('Value not in set')
 
+        it 'should fail to remove a !== element', ->
+          priv.insert(4)
+          expect(-> priv.remove('4')).to.throw('Value not in set')
+
         it 'should return an iterator with no next or previous', ->
           iterator = priv.findIterator(4)
           expect(iterator.hasNext()).to.eq(false)
@@ -197,10 +201,16 @@ module.exports =
           priv.insert('b');
           expect(priv.toArray()).to.deep.eq(['b'])
 
-        it 'should not throw an error with removeNullStrategy = ignore', ->
+        it 'should ignore the removal when removeNullStrategy = ignore', ->
           priv = new strategy(comparator: numberComparator, removeNullStrategy: 'ignore')
           priv.remove(1);
           expect(priv.toArray()).to.deep.eq([])
+
+        it 'should ignore the removal when removing a different value with the same comparison', ->
+          priv = new strategy(comparator: lengthComparator, removeNullStrategy: 'ignore')
+          priv.insert('a');
+          priv.remove('b');
+          expect(priv.toArray()).to.deep.eq(['a'])
 
         it 'should update length correctly when insertion is ignored', ->
           priv = new AbstractSortedSet(strategy: strategy, comparator: lengthComparator, insertionCollisionStrategy: 'ignore')
@@ -221,3 +231,54 @@ module.exports =
           priv.remove('a');
           expect(priv.toArray()).to.deep.eq([])
           expect(priv.length).to.equal(0)
+
+        it 'should not update length when ignoring the removal of a different value with the same comparison', ->
+          priv = new AbstractSortedSet(strategy: strategy, comparator: lengthComparator, removeNullStrategy: 'ignore')
+          priv.insert('a');
+          priv.remove('b');
+          expect(priv.toArray()).to.deep.eq(['a'])
+          expect(priv.length).to.equal(1)
+
+        it 'should still work correctly after an insertion is ignored', ->
+          priv = new AbstractSortedSet(strategy: strategy, comparator: lengthComparator, insertionCollisionStrategy: 'ignore')
+          priv.insert('ab');
+          priv.insert('abcd');
+          priv.insert('a');
+          expect(priv.toArray()).to.deep.eq(['a', 'ab', 'abcd'])
+          priv.insert('no');
+          expect(priv.toArray()).to.deep.eq(['a', 'ab', 'abcd'])
+          priv.insert('');
+          priv.insert('abc');
+          priv.insert('bad');
+          priv.insert('abcde');
+          expect(priv.toArray()).to.deep.eq(['', 'a', 'ab', 'abc', 'abcd', 'abcde'])
+          expect(priv.length).to.equal(6)
+
+        it 'should still work correctly after an insertion is replaced', ->
+          priv = new AbstractSortedSet(strategy: strategy, comparator: lengthComparator, insertionCollisionStrategy: 'replace')
+          priv.insert('no');
+          priv.insert('abcd');
+          priv.insert('a');
+          expect(priv.toArray()).to.deep.eq(['a', 'no', 'abcd'])
+          priv.insert('ab');
+          expect(priv.toArray()).to.deep.eq(['a', 'ab', 'abcd'])
+          priv.insert('');
+          priv.insert('bad');
+          priv.insert('abc');
+          priv.insert('abcde');
+          expect(priv.toArray()).to.deep.eq(['', 'a', 'ab', 'abc', 'abcd', 'abcde'])
+          expect(priv.length).to.equal(6)
+
+        it 'should still work correctly after a removal is ignored', ->
+          priv = new AbstractSortedSet(strategy: strategy, comparator: lengthComparator, removeNullStrategy: 'ignore')
+          priv.remove('a');
+          priv.insert('a');
+          expect(priv.toArray()).to.deep.eq(['a'])
+          priv.remove('b');
+          priv.insert('no');
+          priv.insert('abc');
+          expect(priv.toArray()).to.deep.eq(['a', 'no', 'abc'])
+          priv.remove('no');
+          priv.insert('ab');
+          expect(priv.toArray()).to.deep.eq(['a', 'ab', 'abc'])
+          expect(priv.length).to.equal(3)

@@ -12,7 +12,9 @@ nodeAllTheWay = (node, leftOrRight) ->
 
 # Returns the subtree, minus value
 binaryTreeDelete = (node, value, comparator, handleRemoveNull) ->
-  return handleRemoveNull() if node is null
+  if node is null
+    handleRemoveNull()
+    return null;
 
   cmp = comparator(value, node.value)
   if cmp < 0
@@ -20,6 +22,9 @@ binaryTreeDelete = (node, value, comparator, handleRemoveNull) ->
   else if cmp > 0
     node.right = binaryTreeDelete(node.right, value, comparator)
   else # This is the value we want to remove
+    if node.value != value
+      handleRemoveNull()
+      return node
     if node.left is null && node.right is null
       node = null
     else if node.right is null
@@ -47,7 +52,7 @@ class BinaryTreeStrategy extends AbstractBinaryTreeStrategy
       @insertionCollision = -> throw 'Value already in set'
 
     if @options.removeNullStrategy == 'ignore'
-      @removeNull = -> null
+      @removeNull = => @successfulRemoval = null
     else
       @removeNull = -> throw 'Value not in set'
 
@@ -68,6 +73,8 @@ class BinaryTreeStrategy extends AbstractBinaryTreeStrategy
     true
 
   remove: (value) ->
+    @successfulRemoval = true
     @root = binaryTreeDelete(@root, value, @comparator, @removeNull)
+    @successfulRemoval
 
 module.exports = BinaryTreeStrategy

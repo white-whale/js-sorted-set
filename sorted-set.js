@@ -337,7 +337,7 @@ ArrayStrategy = (function() {
   ArrayStrategy.prototype.remove = function(value) {
     var index;
     index = binarySearchForIndex(this.data, value, this.comparator);
-    if (index >= this.data.length) {
+    if (index >= this.data.length || value !== this.data[index]) {
       return this.removeNull();
     } else {
       return this.data.splice(index, 1);
@@ -559,7 +559,8 @@ nodeAllTheWay = function(node, leftOrRight) {
 binaryTreeDelete = function(node, value, comparator, handleRemoveNull) {
   var cmp, nextNode;
   if (node === null) {
-    return handleRemoveNull();
+    handleRemoveNull();
+    return null;
   }
   cmp = comparator(value, node.value);
   if (cmp < 0) {
@@ -567,6 +568,10 @@ binaryTreeDelete = function(node, value, comparator, handleRemoveNull) {
   } else if (cmp > 0) {
     node.right = binaryTreeDelete(node.right, value, comparator);
   } else {
+    if (node.value !== value) {
+      handleRemoveNull();
+      return node;
+    }
     if (node.left === null && node.right === null) {
       node = null;
     } else if (node.right === null) {
@@ -604,9 +609,11 @@ BinaryTreeStrategy = (function(superClass) {
       };
     }
     if (this.options.removeNullStrategy === 'ignore') {
-      this.removeNull = function() {
-        return null;
-      };
+      this.removeNull = (function(_this) {
+        return function() {
+          return _this.successfulRemoval = null;
+        };
+      })(this);
     } else {
       this.removeNull = function() {
         throw 'Value not in set';
@@ -638,7 +645,9 @@ BinaryTreeStrategy = (function(superClass) {
   };
 
   BinaryTreeStrategy.prototype.remove = function(value) {
-    return this.root = binaryTreeDelete(this.root, value, this.comparator, this.removeNull);
+    this.successfulRemoval = true;
+    this.root = binaryTreeDelete(this.root, value, this.comparator, this.removeNull);
+    return this.successfulRemoval;
   };
 
   return BinaryTreeStrategy;
@@ -771,11 +780,13 @@ removeMinNode = function(h) {
 
 removeFromNode = function(h, value, compare, removalFailure) {
   if (h === null) {
-    return removalFailure();
+    removalFailure();
+    return null;
   }
   if (h.value !== value && compare(value, h.value) < 0) {
     if (h.left === null) {
-      return removalFailure();
+      removalFailure();
+      return h;
     }
     if (!h.left.isRed && !(h.left.left !== null && h.left.left.isRed)) {
       h = moveRedLeft(h);
@@ -789,7 +800,8 @@ removeFromNode = function(h, value, compare, removalFailure) {
       if (value === h.value) {
         return null;
       } else {
-        return removalFailure();
+        removalFailure();
+        return h;
       }
     }
     if (!h.right.isRed && !(h.right.left !== null && h.right.left.isRed)) {

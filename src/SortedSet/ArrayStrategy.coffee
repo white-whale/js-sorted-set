@@ -63,7 +63,7 @@ class ArrayStrategy
     true
   remove: (value) ->
     index = binarySearchForIndex(@data, value, @comparator)
-    if index >= @data.length
+    if index >= @data.length or value != @data[index]
       @removeNull()
     else
       @data.splice(index, 1)

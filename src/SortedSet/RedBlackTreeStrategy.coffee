@@ -116,10 +116,14 @@ removeMinNode = (h) ->
   fixUp(h)
 
 removeFromNode = (h, value, compare, removalFailure) ->
-  return removalFailure() if h is null
+  if h is null
+    removalFailure()
+    return null
 
   if h.value isnt value && compare(value, h.value) < 0
-    return removalFailure() if h.left is null
+    if h.left is null
+      removalFailure()
+      return h
     if !h.left.isRed && !(h.left.left isnt null && h.left.left.isRed)
       h = moveRedLeft(h)
     h.left = removeFromNode(h.left, value, compare, removalFailure)
@@ -131,7 +135,8 @@ removeFromNode = (h, value, compare, removalFailure) ->
       if value is h.value
         return null # leaf node; LLRB assures no left value here
       else
-        return removalFailure()
+        removalFailure()
+        return h
 
     if !h.right.isRed && !(h.right.left isnt null && h.right.left.isRed)
       h = moveRedRight(h)
