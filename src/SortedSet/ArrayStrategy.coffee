@@ -38,9 +38,11 @@ class ArrayStrategy
     @comparator = @options.comparator
     @data = []
     if @options.insertionCollisionStrategy == 'replace'
-      @insertionCollion = (value, index) -> @data[index] = value
+      @insertionCollion = (value, index) ->
+        @data[index] = value
+        return null
     else if @options.insertionCollisionStrategy == 'ignore'
-      @insertionCollion = ->
+      @insertionCollion = -> null
     else
       @insertionCollion = -> throw 'Value already in set'
 
@@ -55,13 +57,13 @@ class ArrayStrategy
     index = binarySearchForIndex(@data, value, @comparator)
 
     if index < @data.length and @comparator(@data[index], value) == 0
-      @insertionCollion(value, index)
-    else
-      @data.splice(index, 0, value)
+      return@insertionCollion(value, index)
 
+    @data.splice(index, 0, value)
+    true
   remove: (value) ->
     index = binarySearchForIndex(@data, value, @comparator)
-    if @data[index] != value
+    if index >= @data.length
       @removeNull()
     else
       @data.splice(index, 1)

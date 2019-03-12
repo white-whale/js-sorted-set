@@ -20,6 +20,8 @@ SortedSet = (function(superClass) {
     options.comparator || (options.comparator = function(a, b) {
       return (a || 0) - (b || 0);
     });
+    options.insertionCollisionStrategy || (options.insertionCollisionStrategy = 'throw');
+    options.removeNullStrategy || (options.removeNullStrategy = 'throw');
     SortedSet.__super__.constructor.call(this, options);
   }
 
@@ -128,14 +130,16 @@ module.exports = AbstractSortedSet = (function() {
   }
 
   AbstractSortedSet.prototype.insert = function(value) {
-    this.priv.insert(value);
-    this.length += 1;
+    if (this.priv.insert(value) != null) {
+      this.length += 1;
+    }
     return this;
   };
 
   AbstractSortedSet.prototype.remove = function(value) {
-    this.priv.remove(value);
-    this.length -= 1;
+    if (this.priv.remove(value) != null) {
+      this.length -= 1;
+    }
     return this;
   };
 
@@ -293,6 +297,27 @@ ArrayStrategy = (function() {
     this.options = options;
     this.comparator = this.options.comparator;
     this.data = [];
+    if (this.options.insertionCollisionStrategy === 'replace') {
+      this.insertionCollion = function(value, index) {
+        this.data[index] = value;
+        return null;
+      };
+    } else if (this.options.insertionCollisionStrategy === 'ignore') {
+      this.insertionCollion = function() {
+        return null;
+      };
+    } else {
+      this.insertionCollion = function() {
+        throw 'Value already in set';
+      };
+    }
+    if (this.options.removeNullStrategy === 'ignore') {
+      this.removeNull = function() {};
+    } else {
+      this.removeNull = function() {
+        throw 'Value not in set';
+      };
+    }
   }
 
   ArrayStrategy.prototype.toArray = function() {
@@ -302,19 +327,21 @@ ArrayStrategy = (function() {
   ArrayStrategy.prototype.insert = function(value) {
     var index;
     index = binarySearchForIndex(this.data, value, this.comparator);
-    if (this.data[index] === value) {
-      throw 'Value already in set';
+    if (index < this.data.length && this.comparator(this.data[index], value) === 0) {
+      return this.insertionCollion(value, index);
     }
-    return this.data.splice(index, 0, value);
+    this.data.splice(index, 0, value);
+    return true;
   };
 
   ArrayStrategy.prototype.remove = function(value) {
     var index;
     index = binarySearchForIndex(this.data, value, this.comparator);
-    if (this.data[index] !== value) {
-      throw 'Value not in set';
+    if (index >= this.data.length) {
+      return this.removeNull();
+    } else {
+      return this.data.splice(index, 1);
     }
-    return this.data.splice(index, 1);
   };
 
   ArrayStrategy.prototype.clear = function() {
@@ -529,10 +556,10 @@ nodeAllTheWay = function(node, leftOrRight) {
   return node;
 };
 
-binaryTreeDelete = function(node, value, comparator) {
+binaryTreeDelete = function(node, value, comparator, handleRemoveNull) {
   var cmp, nextNode;
   if (node === null) {
-    throw 'Value not in set';
+    return handleRemoveNull();
   }
   cmp = comparator(value, node.value);
   if (cmp < 0) {
@@ -562,6 +589,29 @@ BinaryTreeStrategy = (function(superClass) {
     this.options = options;
     this.comparator = this.options.comparator;
     this.root = null;
+    if (this.options.insertionCollisionStrategy === 'replace') {
+      this.insertionCollision = function(node, value) {
+        node.value = value;
+        return null;
+      };
+    } else if (this.options.insertionCollisionStrategy === 'ignore') {
+      this.insertionCollision = function() {
+        return null;
+      };
+    } else {
+      this.insertionCollision = function() {
+        throw 'Value already in set';
+      };
+    }
+    if (this.options.removeNullStrategy === 'ignore') {
+      this.removeNull = function() {
+        return null;
+      };
+    } else {
+      this.removeNull = function() {
+        throw 'Value not in set';
+      };
+    }
   }
 
   BinaryTreeStrategy.prototype.insert = function(value) {
@@ -572,7 +622,7 @@ BinaryTreeStrategy = (function(superClass) {
       while (true) {
         cmp = compare(value, parent.value);
         if (cmp === 0) {
-          throw 'Value already in set';
+          return this.insertionCollision(parent, value);
         }
         leftOrRight = cmp < 0 ? 'left' : 'right';
         if (parent[leftOrRight] === null) {
@@ -580,14 +630,15 @@ BinaryTreeStrategy = (function(superClass) {
         }
         parent = parent[leftOrRight];
       }
-      return parent[leftOrRight] = new Node(value);
+      parent[leftOrRight] = new Node(value);
     } else {
-      return this.root = new Node(value);
+      this.root = new Node(value);
     }
+    return true;
   };
 
   BinaryTreeStrategy.prototype.remove = function(value) {
-    return this.root = binaryTreeDelete(this.root, value, this.comparator);
+    return this.root = binaryTreeDelete(this.root, value, this.comparator, this.removeNull);
   };
 
   return BinaryTreeStrategy;
@@ -662,17 +713,17 @@ moveRedRight = function(h) {
   return h;
 };
 
-insertInNode = function(h, value, compare) {
+insertInNode = function(h, value, compare, insertionCollision) {
   if (h === null) {
     return new Node(value);
   }
-  if (h.value === value) {
-    throw 'Value already in set';
+  if (compare(h.value, value) === 0) {
+    return insertionCollision(h, value);
   } else {
     if (compare(value, h.value) < 0) {
-      h.left = insertInNode(h.left, value, compare);
+      h.left = insertInNode(h.left, value, compare, insertionCollision);
     } else {
-      h.right = insertInNode(h.right, value, compare);
+      h.right = insertInNode(h.right, value, compare, insertionCollision);
     }
   }
   if (h.right !== null && h.right.isRed && !(h.left !== null && h.left.isRed)) {
@@ -718,18 +769,18 @@ removeMinNode = function(h) {
   return fixUp(h);
 };
 
-removeFromNode = function(h, value, compare) {
+removeFromNode = function(h, value, compare, removalFailure) {
   if (h === null) {
-    throw 'Value not in set';
+    return removalFailure();
   }
   if (h.value !== value && compare(value, h.value) < 0) {
     if (h.left === null) {
-      throw 'Value not in set';
+      return removalFailure();
     }
     if (!h.left.isRed && !(h.left.left !== null && h.left.left.isRed)) {
       h = moveRedLeft(h);
     }
-    h.left = removeFromNode(h.left, value, compare);
+    h.left = removeFromNode(h.left, value, compare, removalFailure);
   } else {
     if (h.left !== null && h.left.isRed) {
       h = rotateRight(h);
@@ -738,7 +789,7 @@ removeFromNode = function(h, value, compare) {
       if (value === h.value) {
         return null;
       } else {
-        throw 'Value not in set';
+        return removalFailure();
       }
     }
     if (!h.right.isRed && !(h.right.left !== null && h.right.left.isRed)) {
@@ -748,7 +799,7 @@ removeFromNode = function(h, value, compare) {
       h.value = findMinNode(h.right).value;
       h.right = removeMinNode(h.right);
     } else {
-      h.right = removeFromNode(h.right, value, compare);
+      h.right = removeFromNode(h.right, value, compare, removalFailure);
     }
   }
   if (h !== null) {
@@ -764,20 +815,54 @@ module.exports = RedBlackTreeStrategy = (function(superClass) {
     this.options = options;
     this.comparator = this.options.comparator;
     this.root = null;
+    if (this.options.insertionCollisionStrategy === 'replace') {
+      this.insertionCollision = (function(_this) {
+        return function(node, value) {
+          _this.successfulInsertion = null;
+          node.value = value;
+          return node;
+        };
+      })(this);
+    } else if (this.options.insertionCollisionStrategy === 'ignore') {
+      this.insertionCollision = (function(_this) {
+        return function(node) {
+          _this.successfulInsertion = null;
+          return node;
+        };
+      })(this);
+    } else {
+      this.insertionCollision = function() {
+        throw 'Value already in set';
+      };
+    }
+    if (this.options.removeNullStrategy === 'ignore') {
+      this.removeNull = (function(_this) {
+        return function() {
+          _this.successfulRemoval = null;
+          return null;
+        };
+      })(this);
+    } else {
+      this.removeNull = function() {
+        throw 'Value not in set';
+      };
+    }
   }
 
   RedBlackTreeStrategy.prototype.insert = function(value) {
-    this.root = insertInNode(this.root, value, this.comparator);
+    this.successfulInsertion = true;
+    this.root = insertInNode(this.root, value, this.comparator, this.insertionCollision);
     this.root.isRed = false;
-    return void 0;
+    return this.successfulInsertion;
   };
 
   RedBlackTreeStrategy.prototype.remove = function(value) {
-    this.root = removeFromNode(this.root, value, this.comparator);
+    this.successfulRemoval = true;
+    this.root = removeFromNode(this.root, value, this.comparator, this.removeNull);
     if (this.root !== null) {
       this.root.isRed = false;
     }
-    return void 0;
+    return this.successfulRemoval;
   };
 
   return RedBlackTreeStrategy;

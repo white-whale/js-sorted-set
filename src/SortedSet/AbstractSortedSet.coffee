@@ -6,13 +6,11 @@ module.exports = class AbstractSortedSet
     @length = 0
 
   insert: (value) ->
-    @priv.insert(value)
-    @length += 1
+    @length += 1 if @priv.insert(value)?
     this
 
   remove: (value) ->
-    @priv.remove(value)
-    @length -= 1
+    @length -= 1 if @priv.remove(value)?
     this
 
   clear: ->
@@ -64,7 +62,7 @@ module.exports = class AbstractSortedSet
   # `a` is a pointer to the beginning of the iterator. `a.value()` returns
   # `3`. `a.previous()` returns `null`. `a.setValue()` works, if
   # `options.allowSetValue` is true.
-  # 
+  #
   # `b` is a pointer to the value `3`. `a.previous()` and `a.next()` both do
   # the obvious.
   #

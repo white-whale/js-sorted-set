@@ -145,32 +145,38 @@ removeFromNode = (h, value, compare, removalFailure) ->
 
   h
 
-replaceNodeValue = (node, value) ->
-  node.value = value
-  node
 
 module.exports = class RedBlackTreeStrategy extends AbstractBinaryTreeStrategy
   constructor: (@options) ->
     @comparator = @options.comparator
     @root = null
     if @options.insertionCollisionStrategy == 'replace'
-      @insertionCollision = replaceNodeValue
+      @insertionCollision = (node, value) =>
+        @successfulInsertion = null
+        node.value = value
+        node
     else if @options.insertionCollisionStrategy == 'ignore'
-      @insertionCollision = (node) -> node
+      @insertionCollision = (node) =>
+        @successfulInsertion = null
+        node
     else
       @insertionCollision = -> throw 'Value already in set'
 
     if @options.removeNullStrategy == 'ignore'
-      @removeNull = -> null
+      @removeNull = =>
+        @successfulRemoval = null
+        null
     else
       @removeNull = -> throw 'Value not in set'
 
   insert: (value) ->
+    @successfulInsertion = true
     @root = insertInNode(@root, value, @comparator, @insertionCollision)
     @root.isRed = false # always
-    undefined
+    @successfulInsertion
 
   remove: (value) ->
+    @successfulRemoval = true
     @root = removeFromNode(@root, value, @comparator, @removeNull)
     @root.isRed = false if @root isnt null
-    undefined
+    @successfulRemoval

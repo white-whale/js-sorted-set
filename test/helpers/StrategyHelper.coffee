@@ -1,6 +1,8 @@
 numberComparator = (a, b) -> a - b
 lengthComparator = (a, b) -> a.length - b.length
 
+AbstractSortedSet = require('../../src/SortedSet/AbstractSortedSet')
+
 module.exports =
   describeStrategy: (description, strategy) ->
     describe description, ->
@@ -188,12 +190,34 @@ module.exports =
           priv.insert('a');
           priv.insert('b');
           expect(priv.toArray()).to.deep.eq(['a'])
+
         it 'should replace the value when insertionCollisionStrategy = replace', ->
           priv = new strategy(comparator: lengthComparator, insertionCollisionStrategy: 'replace')
           priv.insert('a');
           priv.insert('b');
           expect(priv.toArray()).to.deep.eq(['b'])
+
         it 'should not throw an error with removeNullStrategy = ignore', ->
           priv = new strategy(comparator: numberComparator, removeNullStrategy: 'ignore')
           priv.remove(1);
           expect(priv.toArray()).to.deep.eq([])
+
+        it 'should update length correctly when insertion is ignored', ->
+          priv = new AbstractSortedSet(strategy: strategy, comparator: lengthComparator, insertionCollisionStrategy: 'ignore')
+          priv.insert('a');
+          priv.insert('b');
+          expect(priv.toArray()).to.deep.eq(['a'])
+          expect(priv.length).to.equal(1)
+
+        it 'should update length correctly when insertion is replaced', ->
+          priv = new AbstractSortedSet(strategy: strategy, comparator: lengthComparator, insertionCollisionStrategy: 'replace')
+          priv.insert('a');
+          priv.insert('b');
+          expect(priv.toArray()).to.deep.eq(['b'])
+          expect(priv.length).to.equal(1)
+
+        it 'should update length correctly when removal is ignored', ->
+          priv = new AbstractSortedSet(strategy: strategy, comparator: lengthComparator, removeNullStrategy: 'ignore')
+          priv.remove('a');
+          expect(priv.toArray()).to.deep.eq([])
+          expect(priv.length).to.equal(0)

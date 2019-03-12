@@ -38,9 +38,11 @@ class BinaryTreeStrategy extends AbstractBinaryTreeStrategy
     @comparator = @options.comparator
     @root = null
     if @options.insertionCollisionStrategy == 'replace'
-      @insertionCollision = (node, value) -> node.value = value
+      @insertionCollision = (node, value) ->
+        node.value = value
+        return null
     else if @options.insertionCollisionStrategy == 'ignore'
-      @insertionCollision = ->
+      @insertionCollision = -> null
     else
       @insertionCollision = -> throw 'Value already in set'
 
@@ -63,6 +65,7 @@ class BinaryTreeStrategy extends AbstractBinaryTreeStrategy
       parent[leftOrRight] = new Node(value)
     else
       @root = new Node(value)
+    true
 
   remove: (value) ->
     @root = binaryTreeDelete(@root, value, @comparator, @removeNull)

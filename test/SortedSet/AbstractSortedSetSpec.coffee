@@ -17,8 +17,8 @@ describe 'AbstractSortedSet', ->
     class MockStrategy
       constructor: (@options) ->
         strategy = this
-      insert: sinon.spy()
-      remove: sinon.spy()
+      insert: sinon.stub().returns(true)
+      remove: sinon.stub().returns(true)
       clear: sinon.spy()
       toArray: sinon.stub().returns([])
       forEachImpl: sinon.stub()
