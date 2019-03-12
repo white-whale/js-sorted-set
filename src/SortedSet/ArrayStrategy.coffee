@@ -37,18 +37,34 @@ class ArrayStrategy
   constructor: (@options) ->
     @comparator = @options.comparator
     @data = []
+    if @options.insertionCollisionStrategy == 'replace'
+      @insertionCollion = (value, index) -> @data[index] = value
+    else if @options.insertionCollisionStrategy == 'ignore'
+      @insertionCollion = ->
+    else
+      @insertionCollion = -> throw 'Value already in set'
+
+    if @options.removeNullStrategy == 'ignore'
+      @removeNull = ->
+    else
+      @removeNull = -> throw 'Value not in set'
 
   toArray: -> @data
 
   insert: (value) ->
     index = binarySearchForIndex(@data, value, @comparator)
-    throw 'Value already in set' if @data[index] == value
-    @data.splice(index, 0, value)
+
+    if index < @data.length and @comparator(@data[index], value) == 0
+      @insertionCollion(value, index)
+    else
+      @data.splice(index, 0, value)
 
   remove: (value) ->
     index = binarySearchForIndex(@data, value, @comparator)
-    throw 'Value not in set' if @data[index] != value
-    @data.splice(index, 1)
+    if @data[index] != value
+      @removeNull()
+    else
+      @data.splice(index, 1)
 
   clear: ->
     @data.length = 0

@@ -8,6 +8,8 @@ class SortedSet extends AbstractSortedSet
     options ||= {}
     options.strategy ||= RedBlackTreeStrategy
     options.comparator ||= (a, b) -> (a || 0) - (b || 0)
+    options.insertionCollisionStrategy ||= 'throw'
+    options.removeNullStrategy ||= 'throw'
     super(options)
 
 SortedSet.ArrayStrategy = ArrayStrategy

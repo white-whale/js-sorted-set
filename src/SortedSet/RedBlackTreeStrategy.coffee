@@ -57,20 +57,20 @@ moveRedRight = (h) ->
     colorFlip(h)
   h
 
-insertInNode = (h, value, compare) ->
+insertInNode = (h, value, compare, insertionCollision) ->
   if h is null
     return new Node(value)
 
   #if h.left isnt null && h.left.isRed && h.right isnt null && h.right.isRed
   #  colorFlip(h)
 
-  if h.value is value
-    throw 'Value already in set';
+  if compare(h.value, value) == 0
+    return insertionCollision(h, value);
   else
     if compare(value, h.value) < 0
-      h.left = insertInNode(h.left, value, compare)
+      h.left = insertInNode(h.left, value, compare, insertionCollision)
     else
-      h.right = insertInNode(h.right, value, compare)
+      h.right = insertInNode(h.right, value, compare, insertionCollision)
 
   if h.right isnt null && h.right.isRed && !(h.left isnt null && h.left.isRed)
     h = rotateLeft(h)
@@ -115,14 +115,14 @@ removeMinNode = (h) ->
 
   fixUp(h)
 
-removeFromNode = (h, value, compare) ->
-  throw 'Value not in set' if h is null
+removeFromNode = (h, value, compare, removalFailure) ->
+  return removalFailure() if h is null
 
   if h.value isnt value && compare(value, h.value) < 0
-    throw 'Value not in set' if h.left is null
+    return removalFailure() if h.left is null
     if !h.left.isRed && !(h.left.left isnt null && h.left.left.isRed)
       h = moveRedLeft(h)
-    h.left = removeFromNode(h.left, value, compare)
+    h.left = removeFromNode(h.left, value, compare, removalFailure)
   else
     if h.left isnt null && h.left.isRed
       h = rotateRight(h)
@@ -131,7 +131,7 @@ removeFromNode = (h, value, compare) ->
       if value is h.value
         return null # leaf node; LLRB assures no left value here
       else
-        throw 'Value not in set'
+        return removalFailure()
 
     if !h.right.isRed && !(h.right.left isnt null && h.right.left.isRed)
       h = moveRedRight(h)
@@ -139,23 +139,38 @@ removeFromNode = (h, value, compare) ->
       h.value = findMinNode(h.right).value
       h.right = removeMinNode(h.right)
     else
-      h.right = removeFromNode(h.right, value, compare)
+      h.right = removeFromNode(h.right, value, compare, removalFailure)
 
   h = fixUp(h) if h isnt null
 
   h
 
+replaceNodeValue = (node, value) ->
+  node.value = value
+  node
+
 module.exports = class RedBlackTreeStrategy extends AbstractBinaryTreeStrategy
   constructor: (@options) ->
     @comparator = @options.comparator
     @root = null
+    if @options.insertionCollisionStrategy == 'replace'
+      @insertionCollision = replaceNodeValue
+    else if @options.insertionCollisionStrategy == 'ignore'
+      @insertionCollision = (node) -> node
+    else
+      @insertionCollision = -> throw 'Value already in set'
+
+    if @options.removeNullStrategy == 'ignore'
+      @removeNull = -> null
+    else
+      @removeNull = -> throw 'Value not in set'
 
   insert: (value) ->
-    @root = insertInNode(@root, value, @comparator)
+    @root = insertInNode(@root, value, @comparator, @insertionCollision)
     @root.isRed = false # always
     undefined
 
   remove: (value) ->
-    @root = removeFromNode(@root, value, @comparator)
+    @root = removeFromNode(@root, value, @comparator, @removeNull)
     @root.isRed = false if @root isnt null
     undefined

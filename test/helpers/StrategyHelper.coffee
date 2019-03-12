@@ -1,4 +1,5 @@
 numberComparator = (a, b) -> a - b
+lengthComparator = (a, b) -> a.length - b.length
 
 module.exports =
   describeStrategy: (description, strategy) ->
@@ -62,6 +63,9 @@ module.exports =
         it 'should insert at the end', ->
           priv.insert(4)
           expect(priv.toArray()).to.deep.eq([1, 2, 3, 4])
+
+        it 'should throw an error when inserting a duplicate value', ->
+          expect(-> priv.insert(1)).to.throw()
 
         it 'should remove from the beginning', ->
           priv.remove(1)
@@ -177,3 +181,19 @@ module.exports =
         it 'should not allow setValue() on an end iterator', ->
           iterator = priv.endIterator()
           expect(-> iterator.setValue(2.5)).to.throw()
+
+      describe 'with collision options', ->
+        it 'should ignore the value when insertionCollisionStrategy = ingore', ->
+          priv = new strategy(comparator: lengthComparator, insertionCollisionStrategy: 'ignore')
+          priv.insert('a');
+          priv.insert('b');
+          expect(priv.toArray()).to.deep.eq(['a'])
+        it 'should replace the value when insertionCollisionStrategy = replace', ->
+          priv = new strategy(comparator: lengthComparator, insertionCollisionStrategy: 'replace')
+          priv.insert('a');
+          priv.insert('b');
+          expect(priv.toArray()).to.deep.eq(['b'])
+        it 'should not throw an error with removeNullStrategy = ignore', ->
+          priv = new strategy(comparator: numberComparator, removeNullStrategy: 'ignore')
+          priv.remove(1);
+          expect(priv.toArray()).to.deep.eq([])

@@ -11,8 +11,8 @@ nodeAllTheWay = (node, leftOrRight) ->
   node
 
 # Returns the subtree, minus value
-binaryTreeDelete = (node, value, comparator) ->
-  throw 'Value not in set' if node is null
+binaryTreeDelete = (node, value, comparator, handleRemoveNull) ->
+  return handleRemoveNull() if node is null
 
   cmp = comparator(value, node.value)
   if cmp < 0
@@ -37,6 +37,18 @@ class BinaryTreeStrategy extends AbstractBinaryTreeStrategy
   constructor: (@options) ->
     @comparator = @options.comparator
     @root = null
+    if @options.insertionCollisionStrategy == 'replace'
+      @insertionCollision = (node, value) -> node.value = value
+    else if @options.insertionCollisionStrategy == 'ignore'
+      @insertionCollision = ->
+    else
+      @insertionCollision = -> throw 'Value already in set'
+
+    if @options.removeNullStrategy == 'ignore'
+      @removeNull = -> null
+    else
+      @removeNull = -> throw 'Value not in set'
+
 
   insert: (value) ->
     compare = @comparator
@@ -44,7 +56,7 @@ class BinaryTreeStrategy extends AbstractBinaryTreeStrategy
       parent = @root
       loop
         cmp = compare(value, parent.value)
-        throw 'Value already in set' if cmp == 0
+        return @insertionCollision(parent, value) if cmp == 0
         leftOrRight = if cmp < 0 then 'left' else 'right'
         break if parent[leftOrRight] == null
         parent = parent[leftOrRight]
@@ -53,6 +65,6 @@ class BinaryTreeStrategy extends AbstractBinaryTreeStrategy
       @root = new Node(value)
 
   remove: (value) ->
-    @root = binaryTreeDelete(@root, value, @comparator)
+    @root = binaryTreeDelete(@root, value, @comparator, @removeNull)
 
 module.exports = BinaryTreeStrategy
