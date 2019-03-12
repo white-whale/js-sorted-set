@@ -65,7 +65,7 @@ insertInNode = (h, value, compare) ->
   #  colorFlip(h)
 
   if h.value is value
-    return h
+    throw 'Value already in set';
   else
     if compare(value, h.value) < 0
       h.left = insertInNode(h.left, value, compare)
